@@ -104,7 +104,8 @@ def normalizeMatrix(M, axis):
         norm = np.broadcast_to(norm, M.shape)
     return norm
 
-def nmf(Y, A, S, W=None, prox_A=operators.prox_plus, prox_S=operators.prox_plus, proxs_g=None, steps_g=None, Ls=None, slack=0.9, update_order=None, steps_g_update='steps_f', max_iter=1000, e_rel=1e-3, e_abs=0, traceback=None):
+def nmf_with_prox_f(Y, A, S, W=None, prox_A=operators.prox_plus, prox_S=operators.prox_plus, proxs_g=None, steps_g=None, Ls=None, slack=0.9, update_order=None, steps_g_update='steps_f', max_iter=1000, e_rel=1e-3, e_abs=0, traceback=None, 
+                    custom_prox_likelihood=prox_likelihood):
     """Non-negative matrix factorization.
 
     This method solves the NMF problem
@@ -132,6 +133,8 @@ def nmf(Y, A, S, W=None, prox_A=operators.prox_plus, prox_S=operators.prox_plus,
         e_rel: relative error threshold for primal and dual residuals
         e_abs: absolute error threshold for primal and dual residuals
         traceback: utils.Traceback to hold variable histories
+        custom_prox_likelihood: prox_likelihood if needed to be different 
+        to the one defined above (for instance in case of synthesis formulation)
 
     Returns:
         converged: convence test for A,S
@@ -157,7 +160,7 @@ def nmf(Y, A, S, W=None, prox_A=operators.prox_plus, prox_S=operators.prox_plus,
 
     # gradient step, followed by direct application of prox_S or prox_A
     from functools import partial
-    f = partial(prox_likelihood, Y=Y, WA=WA, WS=WS, prox_S=prox_S, prox_A=prox_A)
+    f = partial(custom_prox_likelihood, Y=Y, WA=WA, WS=WS, prox_S=prox_S, prox_A=prox_A)
 
     X = [A, S]
     # use accelerated block-PGM if there's no proxs_g
@@ -165,3 +168,9 @@ def nmf(Y, A, S, W=None, prox_A=operators.prox_plus, prox_S=operators.prox_plus,
         return algorithms.bpgm(X, f, steps_f, accelerated=True, update_order=update_order, max_iter=max_iter, e_rel=e_rel, traceback=traceback)
     else:
         return algorithms.bsdmm(X, f, steps_f, proxs_g, steps_g=steps_g, Ls=Ls, update_order=update_order, steps_g_update=steps_g_update, max_iter=max_iter, e_rel=e_rel, e_abs=e_abs, traceback=traceback)
+
+
+def nmf(Y, A, S, W=None, prox_A=operators.prox_plus, prox_S=operators.prox_plus, proxs_g=None, steps_g=None, Ls=None, slack=0.9, update_order=None, steps_g_update='steps_f', max_iter=1000, e_rel=1e-3, e_abs=0, traceback=None):
+    """Wrapper aroung nmf_with_prox_f(...) using prox_likelihood defined above"""
+    return nmf_with_prox_f(Y, A, S, W=None, prox_A=operators.prox_plus, prox_S=operators.prox_plus, proxs_g=None, steps_g=None, Ls=None, slack=0.9, update_order=None, steps_g_update='steps_f', max_iter=1000, e_rel=1e-3, e_abs=0, traceback=None, 
+                           custom_prox_likelihood=prox_likelihood)
